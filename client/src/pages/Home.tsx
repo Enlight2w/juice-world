@@ -1,25 +1,51 @@
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { Streamdown } from 'streamdown';
-
 /**
- * All content in this page are only for example, replace with your own feature implementation
- * When building pages, remember your instructions in Frontend Best Practices, Design Guide and Common Pitfalls
+ * Juice World - Tropical Pop Art Explosion
+ * Design: Bold color blocks, playful overlapping elements, fruit-forward imagery
+ * Typography: Fredoka One (display), Poppins (body), Righteous (prices), Permanent Marker (labels)
+ * Colors: Vibrant Orange (#FF6B35), Electric Pink (#FF2D87), Lime (#7AC74F), Sunshine (#FFD23F), Berry (#8B5CF6)
  */
+import { useState } from "react";
+import Hero from "@/components/Hero";
+import Navigation from "@/components/Navigation";
+import CategoryTabs from "@/components/CategoryTabs";
+import ProductGrid from "@/components/ProductGrid";
+import PriceList from "@/components/PriceList";
+import FeaturedSection from "@/components/FeaturedSection";
+import ContactSection from "@/components/ContactSection";
+import Footer from "@/components/Footer";
+import FloatingFruits from "@/components/FloatingFruits";
+
 export default function Home() {
-  // If theme is switchable in App.tsx, we can implement theme toggling like this:
-  // const { theme, toggleTheme } = useTheme();
+  const [activeCategory, setActiveCategory] = useState<string>("all");
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <main>
-        {/* Example: lucide-react for icons */}
-        <Loader2 className="animate-spin" />
-        Example Page
-        {/* Example: Streamdown for markdown rendering */}
-        <Streamdown>Any **markdown** content</Streamdown>
-        <Button variant="default">Example Button</Button>
-      </main>
+    <div className="min-h-screen bg-[#FFF8F0] relative overflow-hidden">
+      {/* Floating fruit background elements */}
+      <FloatingFruits />
+
+      {/* Navigation */}
+      <Navigation />
+
+      {/* Hero Section */}
+      <Hero />
+
+      {/* Featured Section */}
+      <FeaturedSection />
+
+      {/* Category Tabs */}
+      <CategoryTabs activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+
+      {/* Product Grid */}
+      <ProductGrid activeCategory={activeCategory} />
+
+      {/* Full Price List */}
+      <PriceList />
+
+      {/* Contact Section */}
+      <ContactSection />
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

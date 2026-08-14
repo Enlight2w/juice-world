@@ -1,15 +1,29 @@
 /**
  * ProductGrid - Interactive product cards with pop-art styling
- * Staggered layout, hand-drawn price tags, comic-burst badges, splash effects
+ * Fetches products from backend via tRPC, with File Storage image URLs
  * Design: Tropical Pop Art Explosion
  */
 import { useState, useEffect, useRef } from "react";
-import { products, categoryColors, categoryEmojis } from "@/data/products";
-import type { Product } from "@/data/products";
+import { trpc } from "@/lib/trpc";
+import { categoryColors, categoryEmojis } from "@/data/products";
+import { Loader2 } from "lucide-react";
 
 interface ProductGridProps {
   activeCategory: string;
 }
+
+type BackendProduct = {
+  id: number;
+  name: string;
+  category: "juices" | "smoothies" | "milkshakes" | "puddings";
+  price: number;
+  description: string | null;
+  badge: string | null;
+  imageKey: string | null;
+  imageUrl: string | null;
+  featured: "yes" | "no";
+  badge2: string | null;
+};
 
 function PriceTag({ price, color }: { price: number; color: string }) {
   return (
@@ -61,12 +75,12 @@ function ComicBadge({ text, color }: { text: string; color: string }) {
   );
 }
 
-function ProductCard({ product, index }: { product: Product; index: number }) {
+function ProductCard({ product, index }: { product: BackendProduct; index: number }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
-  const color = categoryColors[product.category];
-  const emoji = categoryEmojis[product.category];
+  const color = categoryColors[product.category] || "#FF6B35";
+  const emoji = categoryEmojis[product.category] || "🍹";
 
   // Staggered animation on mount
   useEffect(() => {
@@ -91,6 +105,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 
   // Alternating tilt for staggered effect
   const tilt = index % 2 === 0 ? "rotate-[0.5deg]" : "-rotate-[0.5deg]";
+  const isPopular = product.featured === "yes";
 
   return (
     <div
@@ -124,11 +139,20 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 
         {/* Image container with splash overlay */}
         <div className="relative h-52 overflow-hidden">
-          <img
-            src={product.image}
-            alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-          />
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            />
+          ) : (
+            <div
+              className="w-full h-full flex items-center justify-center text-6xl"
+              style={{ background: `${color}15` }}
+            >
+              {emoji}
+            </div>
+          )}
 
           {/* Gradient overlay on hover */}
           <div
@@ -139,12 +163,12 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
           />
 
           {/* Comic badge for featured items */}
-          {product.badge && product.popular && (
+          {product.badge && isPopular && (
             <div className="absolute top-2 left-2 z-10">
               <ComicBadge text={product.badge} color={color} />
             </div>
           )}
-          {product.badge && !product.popular && (
+          {product.badge && !isPopular && (
             <div
               className="absolute top-3 left-3 px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-lg"
               style={{
@@ -205,28 +229,6 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
             {product.description}
           </p>
 
-          {/* Ingredients as pill tags */}
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {product.ingredients.slice(0, 3).map((ing) => (
-              <span
-                key={ing}
-                className="text-[10px] px-2.5 py-0.5 rounded-full font-medium"
-                style={{
-                  background: `${color}15`,
-                  color: `${color}cc`,
-                  border: `1px solid ${color}22`,
-                }}
-              >
-                {ing}
-              </span>
-            ))}
-            {product.ingredients.length > 3 && (
-              <span className="text-[10px] px-2 py-0.5 text-[#1A1A2E]/35">
-                +{product.ingredients.length - 3} more
-              </span>
-            )}
-          </div>
-
           {/* Order button */}
           <button
             className="w-full py-2.5 rounded-xl text-white text-sm font-semibold shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
@@ -251,10 +253,13 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 }
 
 export default function ProductGrid({ activeCategory }: ProductGridProps) {
-  const filteredProducts =
-    activeCategory === "all"
+  const { data: products, isLoading, error } = trpc.products.list.useQuery();
+
+  const filteredProducts = products
+    ? activeCategory === "all"
       ? products
-      : products.filter((p) => p.category === activeCategory);
+      : products.filter((p) => p.category === activeCategory)
+    : [];
 
   return (
     <section className="py-8 md:py-16 relative">
@@ -268,13 +273,30 @@ export default function ProductGrid({ activeCategory }: ProductGridProps) {
       />
 
       <div className="container relative z-10">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-7">
-          {filteredProducts.map((product, index) => (
-            <ProductCard key={product.id} product={product} index={index} />
-          ))}
-        </div>
+        {isLoading && (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-[#FF6B35]" />
+          </div>
+        )}
 
-        {filteredProducts.length === 0 && (
+        {error && (
+          <div className="text-center py-20">
+            <span className="text-6xl mb-4 block">😢</span>
+            <p className="font-display text-2xl text-[#1A1A2E]/60">
+              Something went wrong loading products.
+            </p>
+          </div>
+        )}
+
+        {!isLoading && !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-7">
+            {filteredProducts.map((product, index) => (
+              <ProductCard key={product.id} product={product} index={index} />
+            ))}
+          </div>
+        )}
+
+        {!isLoading && !error && filteredProducts.length === 0 && (
           <div className="text-center py-20">
             <span className="text-6xl mb-4 block">🍹</span>
             <p className="font-display text-2xl text-[#1A1A2E]/60">

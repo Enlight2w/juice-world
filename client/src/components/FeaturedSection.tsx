@@ -1,42 +1,29 @@
 /**
  * FeaturedSection - Highlighted products with pop-art flair
+ * Fetches featured products from backend via tRPC
  * Asymmetric layout, splash decorations, tilted cards, comic bursts
  * Design: Tropical Pop Art Explosion
  */
 import { useState, useEffect, useRef } from "react";
+import { trpc } from "@/lib/trpc";
+import { Loader2 } from "lucide-react";
 
-const featuredProducts = [
-  {
-    id: 1,
-    title: "Tropical Paradise Juice",
-    description: "Pineapple, mango, and passion fruit blended to perfection with a splash of coconut water. Your vacation in a glass.",
-    price: 5.99,
-    image: "/manus-storage/tropical-juice_78531b43.png",
-    color: "#FFD23F",
-    accentColor: "#FF6B35",
-    label: "Trending",
-  },
-  {
-    id: 2,
-    title: "Double Chocolate Shake",
-    description: "Rich chocolate ice cream, premium cocoa, chocolate drizzle, and cookie crumbs. The ultimate indulgence.",
-    price: 6.49,
-    image: "/manus-storage/chocolate-milkshake_9c54a269.png",
-    color: "#8B5CF6",
-    accentColor: "#FF2D87",
-    label: "Indulgent",
-  },
-  {
-    id: 3,
-    title: "Mango Panna Cotta",
-    description: "Silky smooth mango custard with fresh mango cubes on top. A tropical dessert that melts in your mouth.",
-    price: 5.99,
-    image: "/manus-storage/mango-pudding_f78ee9c1.png",
-    color: "#7AC74F",
-    accentColor: "#FFD23F",
-    label: "Chef's Pick",
-  },
-];
+const categoryColors: Record<string, { main: string; accent: string }> = {
+  juices: { main: "#FFD23F", accent: "#FF6B35" },
+  smoothies: { main: "#8B5CF6", accent: "#FF2D87" },
+  milkshakes: { main: "#FFD23F", accent: "#FF2D87" },
+  puddings: { main: "#7AC74F", accent: "#FFD23F" },
+};
+
+type FeaturedProduct = {
+  id: number;
+  name: string;
+  category: "juices" | "smoothies" | "milkshakes" | "puddings";
+  price: number;
+  description: string | null;
+  imageUrl: string | null;
+  badge: string | null;
+};
 
 function SplashCircle({ color, size, x, y, delay }: { color: string; size: number; x: string; y: string; delay: string }) {
   return (
@@ -54,10 +41,12 @@ function SplashCircle({ color, size, x, y, delay }: { color: string; size: numbe
   );
 }
 
-function FeaturedCard({ product, index }: { product: typeof featuredProducts[0]; index: number }) {
+function FeaturedCard({ product, index }: { product: FeaturedProduct; index: number }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const colors = categoryColors[product.category] || categoryColors.juices;
 
   useEffect(() => {
     if (!ref.current) return;
@@ -88,43 +77,54 @@ function FeaturedCard({ product, index }: { product: typeof featuredProducts[0];
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* Splash background */}
-        <SplashCircle color={product.color} size={120} x="-20%" y="-10%" delay="0s" />
-        <SplashCircle color={product.accentColor} size={80} x="80%" y="70%" delay="2s" />
+        <SplashCircle color={colors.main} size={120} x="-20%" y="-10%" delay="0s" />
+        <SplashCircle color={colors.accent} size={80} x="80%" y="70%" delay="2s" />
 
         <div className="relative bg-white rounded-[2rem] overflow-hidden shadow-lg group-hover:shadow-2xl transition-all duration-500 group-hover:-translate-y-2 h-full flex flex-col">
           {/* Image */}
           <div className={`relative ${imageHeight} overflow-hidden`}>
-            <img
-              src={product.image}
-              alt={product.title}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-            />
+            {product.imageUrl ? (
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center text-6xl"
+                style={{ background: `${colors.main}15` }}
+              >
+                🍹
+              </div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
             {/* Label badge - comic style */}
-            <div className="absolute top-4 left-4">
-              <svg width="80" height="80" viewBox="0 0 80 80" className="absolute -top-2 -left-2 -right-2 -bottom-2">
-                <path
-                  d="M40,3 L44,14 L56,9 L52,21 L64,17 L57,29 L68,28 L58,37 L68,42 L58,46 L66,56 L54,52 L53,64 L45,55 L36,66 L35,54 L24,62 L27,50 L15,54 L21,43 L10,46 L20,38 L10,34 L22,33 L17,22 L29,25 L32,14 L37,23 Z"
-                  fill={product.color}
-                  stroke="white"
-                  strokeWidth="1"
-                />
-              </svg>
-              <span className="relative text-[8px] font-bold text-white uppercase tracking-wider leading-none text-center block">
-                {product.label}
-              </span>
-            </div>
+            {product.badge && (
+              <div className="absolute top-4 left-4">
+                <svg width="80" height="80" viewBox="0 0 80 80" className="absolute -top-2 -left-2 -right-2 -bottom-2">
+                  <path
+                    d="M40,3 L44,14 L56,9 L52,21 L64,17 L57,29 L68,28 L58,37 L68,42 L58,46 L66,56 L54,52 L53,64 L45,55 L36,66 L35,54 L24,62 L27,50 L15,54 L21,43 L10,46 L20,38 L10,34 L22,33 L17,22 L29,25 L32,14 L37,23 Z"
+                    fill={colors.main}
+                    stroke="white"
+                    strokeWidth="1"
+                  />
+                </svg>
+                <span className="relative text-[8px] font-bold text-white uppercase tracking-wider leading-none text-center block">
+                  {product.badge}
+                </span>
+              </div>
+            )}
 
             {/* Hand-drawn price tag */}
             <div
               className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg transition-all duration-300"
               style={{
-                border: `2px dashed ${product.color}66`,
+                border: `2px dashed ${colors.main}66`,
                 transform: isHovered ? "rotate(3deg) scale(1.05)" : "rotate(-2deg)",
               }}
             >
-              <span className="font-price text-xl" style={{ color: product.accentColor }}>
+              <span className="font-price text-xl" style={{ color: colors.accent }}>
                 ${product.price.toFixed(2)}
               </span>
             </div>
@@ -133,7 +133,7 @@ function FeaturedCard({ product, index }: { product: typeof featuredProducts[0];
           {/* Content */}
           <div className="p-6 flex-1 flex flex-col">
             <h3 className="font-display text-xl text-[#1A1A2E] mb-2 group-hover:text-[#FF6B35] transition-colors duration-200">
-              {product.title}
+              {product.name}
             </h3>
             <p className="text-[#1A1A2E]/55 text-sm leading-relaxed flex-1">
               {product.description}
@@ -142,7 +142,7 @@ function FeaturedCard({ product, index }: { product: typeof featuredProducts[0];
             <button
               className="mt-4 w-full py-3 rounded-xl text-white font-semibold shadow-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
               style={{
-                background: `linear-gradient(135deg, ${product.color}, ${product.accentColor})`,
+                background: `linear-gradient(135deg, ${colors.main}, ${colors.accent})`,
               }}
             >
               <span>Order This</span>
@@ -158,6 +158,11 @@ function FeaturedCard({ product, index }: { product: typeof featuredProducts[0];
 }
 
 export default function FeaturedSection() {
+  const { data: products, isLoading } = trpc.products.list.useQuery();
+
+  // Get featured products from backend (max 3)
+  const featured = products?.filter((p) => p.featured === "yes").slice(0, 3) || [];
+
   return (
     <section className="py-16 md:py-24 relative">
       {/* Wave divider from hero */}
@@ -193,12 +198,19 @@ export default function FeaturedSection() {
           </p>
         </div>
 
-        {/* Featured Cards - Asymmetric Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 auto-rows-auto">
-          {featuredProducts.map((product, index) => (
-            <FeaturedCard key={product.id} product={product} index={index} />
-          ))}
-        </div>
+        {isLoading && (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-[#FF6B35]" />
+          </div>
+        )}
+
+        {!isLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 auto-rows-auto">
+            {featured.map((product, index) => (
+              <FeaturedCard key={product.id} product={product} index={index} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

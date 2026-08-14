@@ -14,15 +14,15 @@
 
 ## Full-Stack Upgrade
 - [x] Upgrade to web-db-user (server, database, auth, file storage)
-- [ ] Create products table in drizzle/schema.ts
-- [ ] Run drizzle migration to create products table
-- [ ] Create orders table in drizzle/schema.ts
-- [ ] Run drizzle migration to create orders table
-- [ ] Seed database with initial products
-- [ ] Create products router with CRUD endpoints
-- [ ] Create orders router with create/list endpoints
-- [ ] Implement File Storage (S3) for product image uploads
-- [ ] Create admin page for managing products (upload images)
-- [ ] Update frontend to fetch products from backend
-- [ ] Write vitest tests for products and orders routers
-- [ ] Verify all features work in browser
+- [x] Create products table in drizzle/schema.ts
+- [x] Run drizzle migration to create products table
+- [x] Create orders table in drizzle/schema.ts
+- [x] Run drizzle migration to create orders table
+- [x] Seed database with initial products
+- [x] Create products router with CRUD endpoints
+- [x] Create orders router with create/list endpoints
+- [x] Implement File Storage (S3) for product image uploads
+- [x] Create admin page for managing products (upload images)
+- [x] Update frontend to fetch products from backend
+- [x] Write vitest tests for products and orders routers
+- [x] Verify all features work in browser

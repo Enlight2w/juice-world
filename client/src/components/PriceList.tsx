@@ -1,9 +1,12 @@
 /**
  * PriceList - Complete price list with pop-art styling
+ * Fetches products from backend via tRPC
  * Hand-drawn price tags, comic bursts, diagonal color blocks, playful language
  * Design: Tropical Pop Art Explosion
  */
-import { products, categoryColors, categoryEmojis } from "@/data/products";
+import { trpc } from "@/lib/trpc";
+import { categoryColors, categoryEmojis } from "@/data/products";
+import { Loader2 } from "lucide-react";
 
 const categoryLabels: Record<string, string> = {
   juices: "Fresh Juices",
@@ -19,10 +22,22 @@ const categoryTaglines: Record<string, string> = {
   puddings: "Sweet endings to perfectly squeezed days",
 };
 
-function CategorySection({ category }: { category: string }) {
+type BackendProduct = {
+  id: number;
+  name: string;
+  category: "juices" | "smoothies" | "milkshakes" | "puddings";
+  price: number;
+  description: string | null;
+  badge: string | null;
+  imageKey: string | null;
+  imageUrl: string | null;
+  featured: "yes" | "no";
+};
+
+function CategorySection({ category, products }: { category: string; products: BackendProduct[] }) {
   const categoryProducts = products.filter((p) => p.category === category);
-  const color = categoryColors[category];
-  const emoji = categoryEmojis[category];
+  const color = categoryColors[category] || "#FF6B35";
+  const emoji = categoryEmojis[category] || "🍹";
 
   return (
     <div className="mb-12 last:mb-0">
@@ -63,11 +78,20 @@ function CategorySection({ category }: { category: string }) {
 
             <div className="flex items-center gap-4">
               <div className="relative">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-14 h-14 rounded-xl object-cover shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300"
-                />
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="w-14 h-14 rounded-xl object-cover shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300"
+                  />
+                ) : (
+                  <div
+                    className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl"
+                    style={{ background: `${color}15` }}
+                  >
+                    {emoji}
+                  </div>
+                )}
                 {/* Category dot */}
                 <div
                   className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white"
@@ -123,6 +147,7 @@ function CategorySection({ category }: { category: string }) {
 
 export default function PriceList() {
   const categories = ["juices", "smoothies", "milkshakes", "puddings"];
+  const { data: products, isLoading } = trpc.products.list.useQuery();
 
   return (
     <section id="prices" className="py-16 md:py-24 relative">
@@ -149,12 +174,19 @@ export default function PriceList() {
           </p>
         </div>
 
-        {/* Price Categories */}
-        <div className="max-w-4xl mx-auto">
-          {categories.map((cat) => (
-            <CategorySection key={cat} category={cat} />
-          ))}
-        </div>
+        {isLoading && (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-[#FF6B35]" />
+          </div>
+        )}
+
+        {!isLoading && products && (
+          <div className="max-w-4xl mx-auto">
+            {categories.map((cat) => (
+              <CategorySection key={cat} category={cat} products={products} />
+            ))}
+          </div>
+        )}
 
         {/* Special Offers Banner */}
         <div className="max-w-4xl mx-auto mt-16">

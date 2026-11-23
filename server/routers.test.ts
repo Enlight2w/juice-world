@@ -229,14 +229,19 @@ describe("products.create", () => {
 describe("orders.create", () => {
   it("allows public users to place orders", async () => {
     vi.mocked(createOrder).mockResolvedValue(undefined as any);
+    vi.mocked(getProductById).mockImplementation(async id => ({
+      id,
+      name: id === 1 ? "Orange Juice" : "Mango Smoothie",
+      price: id === 1 ? "4.99" : "6.99",
+    } as any));
 
     const caller = appRouter.createCaller(createPublicContext());
     const result = await caller.orders.create({
       customerName: "John Doe",
       customerEmail: "john@example.com",
       items: [
-        { productId: 1, name: "Orange Juice", price: 4.99, quantity: 2 },
-        { productId: 5, name: "Mango Smoothie", price: 6.99, quantity: 1 },
+        { productId: 1, quantity: 2 },
+        { productId: 5, quantity: 1 },
       ],
       notes: "Extra ice please",
     });
@@ -248,23 +253,32 @@ describe("orders.create", () => {
         customerName: "John Doe",
         totalAmount: "16.97",
         status: "pending",
+        items: JSON.stringify([
+          { productId: 1, name: "Orange Juice", quantity: 2, price: 4.99 },
+          { productId: 5, name: "Mango Smoothie", quantity: 1, price: 6.99 },
+        ]),
       })
     );
   });
 
   it("calculates total correctly with multiple items", async () => {
     vi.mocked(createOrder).mockResolvedValue(undefined as any);
+    vi.mocked(getProductById).mockImplementation(async id => ({
+      id,
+      name: id === 1 ? "Orange Juice" : "Mango Smoothie",
+      price: id === 1 ? "4.99" : "5.50",
+    } as any));
 
     const caller = appRouter.createCaller(createPublicContext());
     const result = await caller.orders.create({
       customerName: "Jane Doe",
       items: [
-        { productId: 1, name: "Item A", price: 10.00, quantity: 3 },
-        { productId: 2, name: "Item B", price: 5.50, quantity: 2 },
+        { productId: 1, quantity: 3 },
+        { productId: 2, quantity: 2 },
       ],
     });
 
-    expect(result.totalAmount).toBe(41.00);
+    expect(result.totalAmount).toBe(25.97);
   });
 
   it("rejects orders with empty items", async () => {

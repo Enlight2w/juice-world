@@ -150,24 +150,39 @@ export const appRouter = router({
     /** Place an order (public) */
     create: publicProcedure
       .input(z.object({
-        customerName: z.string().min(1),
-        customerEmail: z.string().email().optional(),
-        customerPhone: z.string().optional(),
+        customerName: z.string().trim().min(1).max(255),
+        customerEmail: z.string().trim().email().max(320).optional(),
+        customerPhone: z.string().trim().max(50).optional(),
         items: z.array(z.object({
-          productId: z.number(),
-          name: z.string(),
-          price: z.number(),
-          quantity: z.number().min(1),
-        })).min(1),
-        notes: z.string().optional(),
+          productId: z.number().int().positive(),
+          quantity: z.number().int().min(1).max(1000),
+        })).min(1).max(50),
+        notes: z.string().trim().max(2000).optional(),
       }))
       .mutation(async ({ input }) => {
-        const totalAmount = input.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const catalogItems = await Promise.all(input.items.map(async item => {
+          const product = await getProductById(item.productId);
+          if (!product) throw new TRPCError({ code: "NOT_FOUND", message: `Product ${item.productId} was not found.` });
+          const unitPriceCents = Math.round(Number(product.price) * 100);
+          if (!Number.isSafeInteger(unitPriceCents) || unitPriceCents < 0) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "A product has an invalid catalog price." });
+          }
+          return { productId: product.id, name: product.name, unitPriceCents, quantity: item.quantity };
+        }));
+        const totalCents = catalogItems.reduce((sum, item) => sum + item.unitPriceCents * item.quantity, 0);
+        if (!Number.isSafeInteger(totalCents) || totalCents > 9_999_999_999) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "The order total exceeds the supported amount." });
+        }
+        const totalAmount = totalCents / 100;
+        const orderItems = catalogItems.map(({ unitPriceCents, ...item }) => ({
+          ...item,
+          price: unitPriceCents / 100,
+        }));
         await createOrder({
           customerName: input.customerName,
           customerEmail: input.customerEmail,
           customerPhone: input.customerPhone,
-          items: JSON.stringify(input.items),
+          items: JSON.stringify(orderItems),
           totalAmount: totalAmount.toFixed(2),
           notes: input.notes,
           status: "pending",
